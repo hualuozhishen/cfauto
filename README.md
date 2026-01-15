@@ -1,9 +1,9 @@
 <img width="1920" height="879" alt="image" src="https://github.com/user-attachments/assets/fef7e297-e455-41f9-b716-190ee68a59c7" />
 ---
 
-# 🚀 Cloudflare Worker 部署中控 (V5.4 Ultimate)
+# 🚀 Cloudflare Worker 部署中控
 
-这是一个运行在 Cloudflare Worker 上的高级部署管理工具，专为管理和维护 **CMliu (EdgeTunnel)** 与 **Joey (CFNew)** 两个项目而设计。
+Cloudflare Worker部署管理工具，管理和维护 **CMliu (EdgeTunnel)** 与 **Joey (CFNew)** 两个项目。
 
 它集成了**多账号管理**、**全局流量熔断**、**自动版本更新**、**双项目并行管理**以及**变量动态配置**等功能，拥有一个美观且功能强大的 Web 控制面板。
 
