@@ -1,5 +1,6 @@
 /**
  * Cloudflare Worker 多项目部署管理器 (V5.7 Ultimate Edit & Delete)
+ */
 
 // ==========================================
 // 1. 项目模板配置
@@ -365,7 +366,7 @@ function mainHtml() {
         
         <div class="flex items-center gap-3 bg-slate-50 p-2 rounded border border-slate-200">
              <div class="flex items-center gap-2 border-r border-slate-200 pr-3 mr-1">
-                <span class="text-xs font-bold text-gray-600">自动检测</span>
+                <span class="text-xs font-bold text-gray-600">自动检测更新和用量</span>
                 <div class="relative inline-block w-8 align-middle select-none">
                     <input type="checkbox" id="auto_update_toggle" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300"/>
                     <label for="auto_update_toggle" class="toggle-label block overflow-hidden h-4 rounded-full bg-gray-300 cursor-pointer"></label>
@@ -417,8 +418,8 @@ function mainHtml() {
                  </div>
                  <input id="in_token" type="password" placeholder="API Token" class="input-field">
                  <div class="grid grid-cols-2 gap-2">
-                    <input id="in_workers_cmliu" placeholder="🔴 CMliu Workers (逗号隔开)" class="input-field bg-red-50">
-                    <input id="in_workers_joey" placeholder="🔵 Joey Workers (逗号隔开)" class="input-field bg-blue-50">
+                    <input id="in_workers_cmliu" placeholder="🔴 CMliu Workers" class="input-field bg-red-50">
+                    <input id="in_workers_joey" placeholder="🔵 Joey Workers" class="input-field bg-blue-50">
                  </div>
                  <div class="flex gap-2 pt-2">
                     <button onclick="saveAccount()" id="btn_save_acc" class="flex-1 bg-slate-700 text-white py-1.5 rounded font-bold hover:bg-slate-800 transition">💾 保存账号</button>
