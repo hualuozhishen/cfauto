@@ -1,41 +1,44 @@
-# Worker.js V10.0.0 修复完成报告
+# 修改账号 Workers.dev 子域名功能 — 完成总结
 
-## 修改文件
+## 变更内容
 
-- [worker.js](file:///d:/DeskTop/GitHub/worker部署中控/worker.js) — 12 项修复
-- [README.md](file:///d:/DeskTop/GitHub/worker部署中控/README.md) — 重写，新增 V10.0.0 更新日志
+在"📂 管理账号"弹窗中新增了 **查看和修改账号级 workers.dev 子域名前缀** 的功能。
 
-## 修复明细
+### 后端新增（2 个 API + 2 个处理函数）
 
-### 🔐 安全加固 (5 项)
+| API 路由 | 方法 | 功能 |
+|---|---|---|
+| `/api/get_subdomain` | POST | 查询账号当前 workers.dev 子域名前缀 |
+| `/api/change_subdomain` | POST | 修改账号 workers.dev 子域名前缀 |
 
-| # | 修复内容 | 原问题 |
-|---|---------|-------|
-| 1 | 登录改为 `POST /api/login` | 密码通过 URL `?code=xxx` 明文传递 |
-| 2 | Cookie 增加 `Secure` 标志 | 缺少 Secure 可能被中间人截获 |
-| 3 | GET-only API 加方法限制 | `check_update` 等可被任意方法访问 |
-| 4 | POST 请求校验 Origin 头 | 无 CSRF 防护 |
-| 5 | 错误响应返回 JSON | 原泄露 stack trace |
+- `handleGetSubdomain`: 调用 `GET /accounts/{id}/workers/subdomain` 查询
+- `handleChangeSubdomain`: 调用 `PUT /accounts/{id}/workers/subdomain` 修改
 
-### 🐛 缺陷修复 (5 项)
+### 前端变更
 
-| # | 修复内容 | 原问题 |
-|---|---------|-------|
-| 6 | 混淆正则改为行首注释+块注释 | 原正则 `//` 匹配会误删 `https://` |
-| 7 | `checkUpdate` catch 重命名 `e`→`err` | 变量冲突导致错误不显示 |
-| 8 | `saveAccount` 保留已有 stats | 编辑时 stats 被重置为 0 |
-| 9 | 熔断/自动更新动态识别模板 | 硬编码 `cmliu`/`joey` |
-| 10 | `compatibility_date` 使用当前日期 | 硬编码 `2024-01-01` |
+- **管理弹窗**：新增子域名显示栏 + ✏️修改按钮（indigo 配色）
+- **`openAccountManage`**：并行加载 Workers 列表和子域名（`Promise.all`）
+- **`promptChangeSubdomain`**：SweetAlert2 输入框 → 格式校验 → 二次确认 → 调 API → 成功刷新显示
 
-### ⚡ 代码质量 (2 项)
+### 交互流程
 
-| # | 修复内容 | 原问题 |
-|---|---------|-------|
-| 11 | 前端 TEMPLATES/ECH_PROXIES 由后端注入 | 前后端各维护一份，易遗漏 |
-| 12 | 版本号全局更新为 V10.0.0 | — |
+```mermaid
+graph LR
+    A["📂 管理"] --> B["弹窗显示当前子域名"]
+    B --> C["✏️ 修改"]
+    C --> D["输入新前缀 + 格式校验"]
+    D --> E["⚠️ 二次确认"]
+    E --> F["调 API 修改"]
+    F --> G["✅ 成功 / ❌ 失败"]
+```
 
-## 验证结果
+### 修改文件
 
-- ✅ 全局无 `V9.9.6` 残留引用
-- ✅ 全局无 `urlCode` 残留引用（旧 URL 密码逻辑已清除）
-- ✅ 所有修改点相互兼容，无语法错误
+render_diffs(file:///d:/DeskTop/GitHub/worker部署中控/worker.js)
+
+## 验证
+
+本项目为 Cloudflare Worker 单文件，无本地测试框架。需部署后手动验证：
+
+1. 进入中控 → 账号列表 → 📂管理 → 确认子域名栏显示
+2. 点击 ✏️修改 → 输入新子域名 → 确认 → 验证 API 返回

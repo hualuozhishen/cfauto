@@ -1,5 +1,11 @@
 /**
- * Cloudflare Worker 多项目部署管理器 (V10.0.0 - Security & Stability)
+ * Cloudflare Worker 多项目部署管理器 (V10.1.0 - Subdomain Management)
+ * 更新日志 (V10.1.0)：
+ * 1. [Feature] 管理弹窗新增修改账号 workers.dev 子域名前缀功能。
+ * 2. [Feature] 新增 /api/get_subdomain 和 /api/change_subdomain 后端 API。
+ * 3. [Improve] 管理弹窗并行加载 Workers 列表和子域名信息，提升加载速度。
+ * 4. [UX] 修改子域名带二次确认对话框，防止误操作。
+ *
  * 更新日志 (V10.0.0)：
  * 1. [Security] 登录改为 POST，密码不再通过 URL 明文传递；Cookie 增加 Secure 标志。
  * 2. [Security] API 增加 HTTP 方法校验，POST 请求增加 CSRF Origin 检查。
@@ -184,6 +190,14 @@ export default {
             if (url.pathname === "/api/fetch_bindings" && request.method === "POST") {
                 const { accountId, email, globalKey, workerName } = await request.json();
                 return await handleFetchBindings(accountId, email, globalKey, workerName);
+            }
+            if (url.pathname === "/api/get_subdomain" && request.method === "POST") {
+                const { accountId, email, globalKey } = await request.json();
+                return await handleGetSubdomain(accountId, email, globalKey);
+            }
+            if (url.pathname === "/api/change_subdomain" && request.method === "POST") {
+                const { accountId, email, globalKey, newSubdomain } = await request.json();
+                return await handleChangeSubdomain(accountId, email, globalKey, newSubdomain);
             }
 
             return new Response(mainHtml(), { headers: { "Content-Type": "text/html;charset=UTF-8" } });
@@ -712,6 +726,36 @@ async function handleDeleteWorker(env, accountId, email, key, workerName, delete
     } catch (e) { return new Response(JSON.stringify({ success: false, msg: e.message }), { status: 500 }); }
 }
 
+async function handleGetSubdomain(accountId, email, key) {
+    try {
+        const headers = getAuthHeaders(email, key);
+        const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/subdomain`, { headers });
+        const data = await res.json();
+        if (data.success) {
+            return new Response(JSON.stringify({ success: true, subdomain: data.result?.subdomain || '' }), { headers: { "Content-Type": "application/json" } });
+        } else {
+            return new Response(JSON.stringify({ success: false, msg: data.errors?.[0]?.message || '查询失败' }), { headers: { "Content-Type": "application/json" } });
+        }
+    } catch (e) { return new Response(JSON.stringify({ success: false, msg: e.message }), { status: 500 }); }
+}
+
+async function handleChangeSubdomain(accountId, email, key, newSubdomain) {
+    try {
+        const headers = getAuthHeaders(email, key);
+        const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/subdomain`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ subdomain: newSubdomain })
+        });
+        const data = await res.json();
+        if (data.success) {
+            return new Response(JSON.stringify({ success: true, subdomain: data.result?.subdomain || newSubdomain }), { headers: { "Content-Type": "application/json" } });
+        } else {
+            return new Response(JSON.stringify({ success: false, msg: data.errors?.[0]?.message || '修改失败' }), { headers: { "Content-Type": "application/json" } });
+        }
+    } catch (e) { return new Response(JSON.stringify({ success: false, msg: e.message }), { status: 500 }); }
+}
+
 function loginHtml() {
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Login</title></head>
 <body style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f3f4f6;font-family:sans-serif">
@@ -748,7 +792,7 @@ function mainHtml() {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="manifest" href="/manifest.json">
-    <title>Worker 智能中控 (V10.0.0)</title>
+    <title>Worker 智能中控 (V10.1.0)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/javascript-obfuscator/dist/index.browser.js"></script>
@@ -770,8 +814,8 @@ function mainHtml() {
       
       <header class="bg-white px-4 py-3 md:px-6 md:py-4 rounded shadow flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div class="flex-none">
-              <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">🚀 Worker 部署中控 <span class="text-xs bg-purple-600 text-white px-2 py-0.5 rounded ml-2">V10.0.0</span></h1>
-              <div class="text-[10px] text-gray-400 mt-1">安全加固 · 熔断混淆 · 收藏管理</div>
+              <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">🚀 Worker 部署中控 <span class="text-xs bg-purple-600 text-white px-2 py-0.5 rounded ml-2">V10.1.0</span></h1>
+              <div class="text-[10px] text-gray-400 mt-1">安全加固 · 熔断混淆 · 子域名管理 · 收藏管理</div>
           </div>
           <div id="logs" class="bg-slate-900 text-green-400 p-2 rounded text-xs font-mono hidden max-h-[80px] lg:max-h-[50px] overflow-y-auto shadow-inner w-full lg:flex-1 lg:mx-4 order-2 lg:order-none"></div>
           
@@ -986,13 +1030,19 @@ function mainHtml() {
     </div>
 
     <div id="account_manage_modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
-        <div class="bg-white rounded-lg w-[600px] shadow-2xl max-h-[85vh] flex flex-col">
+        <div class="bg-white rounded-lg w-[650px] shadow-2xl max-h-[85vh] flex flex-col">
             <div class="bg-slate-700 p-3 flex justify-between items-center text-white">
                 <h3 class="font-bold text-sm" id="manage_modal_title">📂 账号管理</h3>
                 <button onclick="document.getElementById('account_manage_modal').classList.add('hidden')" class="hover:text-gray-200">×</button>
             </div>
-            <div class="p-2 border-b bg-gray-50 text-[10px] text-gray-500">
-                ⚠️ 警告：删除逻辑为 [解绑 Worker -> 删除 Worker -> 删除 KV]。
+            <div class="p-2 border-b bg-gray-50 text-[10px] text-gray-500 space-y-1">
+                <div>⚠️ 警告：删除逻辑为 [解绑 Worker -> 删除 Worker -> 删除 KV]。</div>
+                <div class="flex items-center gap-2 bg-indigo-50 p-1.5 rounded border border-indigo-100">
+                    <span class="text-indigo-700 font-bold flex-none">🌐 子域名:</span>
+                    <span id="manage_subdomain_display" class="font-mono text-indigo-600 text-[11px]">加载中...</span>
+                    <span class="text-gray-400">.workers.dev</span>
+                    <button onclick="promptChangeSubdomain()" class="ml-auto flex-none bg-indigo-600 text-white px-2 py-0.5 rounded hover:bg-indigo-700 font-bold">✏️ 修改</button>
+                </div>
             </div>
             <div class="flex-1 overflow-y-auto p-4">
                 <div id="manage_loading" class="text-center py-4 text-gray-400">正在加载 Workers 列表...</div>
@@ -1242,7 +1292,10 @@ function mainHtml() {
           document.getElementById('obfuscate_panel').classList.toggle('hidden', !chk);
       }
 
+      let currentManageAccIndex = -1;
+
       async function openAccountManage(i) {
+          currentManageAccIndex = i;
           const acc = accounts[i];
           if (!acc.globalKey) return Swal.fire('无法管理', '请先配置 Global API Key', 'error');
 
@@ -1250,19 +1303,38 @@ function mainHtml() {
           const table = document.getElementById('manage_table');
           const tbody = document.getElementById('manage_list_body');
           const loading = document.getElementById('manage_loading');
+          const subDisplay = document.getElementById('manage_subdomain_display');
           
           document.getElementById('manage_modal_title').innerText = \`📂 管理账号: \${acc.alias}\`;
+          subDisplay.innerText = '加载中...';
           modal.classList.remove('hidden');
           table.classList.add('hidden');
           loading.classList.remove('hidden');
           tbody.innerHTML = '';
 
+          // 并行加载 Workers 列表和子域名
           try {
-              const res = await fetch('/api/all_workers', {
-                  method: 'POST',
-                  body: JSON.stringify({ accountId: acc.accountId, email: acc.email, globalKey: acc.globalKey })
-              });
-              const d = await res.json();
+              const [workersRes, subRes] = await Promise.all([
+                  fetch('/api/all_workers', {
+                      method: 'POST',
+                      body: JSON.stringify({ accountId: acc.accountId, email: acc.email, globalKey: acc.globalKey })
+                  }),
+                  fetch('/api/get_subdomain', {
+                      method: 'POST',
+                      body: JSON.stringify({ accountId: acc.accountId, email: acc.email, globalKey: acc.globalKey })
+                  })
+              ]);
+              
+              // 处理子域名
+              const subData = await subRes.json();
+              if (subData.success && subData.subdomain) {
+                  subDisplay.innerText = subData.subdomain;
+              } else {
+                  subDisplay.innerText = subData.msg || '未设置';
+              }
+
+              // 处理 Workers 列表
+              const d = await workersRes.json();
               loading.classList.add('hidden');
               
               if (d.success) {
@@ -1286,6 +1358,67 @@ function mainHtml() {
                   table.classList.remove('hidden');
               }
           } catch(e) { loading.innerText = "网络错误"; }
+      }
+
+      async function promptChangeSubdomain() {
+          if (currentManageAccIndex < 0) return;
+          const acc = accounts[currentManageAccIndex];
+          const currentSub = document.getElementById('manage_subdomain_display').innerText;
+          
+          const { value: newSub } = await Swal.fire({
+              title: '修改 Workers.dev 子域名',
+              html: \`
+                  <div class="text-left text-sm space-y-2">
+                      <div class="bg-gray-50 p-2 rounded">当前: <b>\${currentSub}</b>.workers.dev</div>
+                      <input id="swal_new_subdomain" class="swal2-input" placeholder="输入新子域名前缀" style="margin:0;width:100%">
+                      <div class="text-xs text-gray-400">⚠️ 修改子域名可能需要数分钟生效，且可能影响现有 Worker 的访问地址。</div>
+                  </div>
+              \`,
+              focusConfirm: false,
+              showCancelButton: true,
+              confirmButtonText: '确认修改',
+              cancelButtonText: '取消',
+              confirmButtonColor: '#4f46e5',
+              preConfirm: () => {
+                  const val = document.getElementById('swal_new_subdomain').value.trim();
+                  if (!val) { Swal.showValidationMessage('请输入新子域名'); return false; }
+                  if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/i.test(val) && val.length > 1 || val.length < 1) {
+                      Swal.showValidationMessage('子域名只能包含字母、数字和连字符'); return false;
+                  }
+                  return val;
+              }
+          });
+
+          if (!newSub) return;
+
+          const confirm2 = await Swal.fire({
+              title: '二次确认',
+              html: \`确定将子域名从 <b>\${currentSub}</b> 改为 <b>\${newSub}</b> 吗？<br><span class="text-xs text-red-500">此操作会影响所有使用 workers.dev 域名的 Worker！</span>\`,
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonText: '确认修改',
+              cancelButtonText: '取消',
+              confirmButtonColor: '#d33'
+          });
+
+          if (!confirm2.isConfirmed) return;
+
+          try {
+              Swal.fire({ title: '修改中...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+              const res = await fetch('/api/change_subdomain', {
+                  method: 'POST',
+                  body: JSON.stringify({ accountId: acc.accountId, email: acc.email, globalKey: acc.globalKey, newSubdomain: newSub })
+              });
+              const data = await res.json();
+              if (data.success) {
+                  document.getElementById('manage_subdomain_display').innerText = data.subdomain || newSub;
+                  Swal.fire('修改成功', \`子域名已更新为: \${data.subdomain || newSub}.workers.dev\`, 'success');
+              } else {
+                  Swal.fire('修改失败', data.msg || '未知错误', 'error');
+              }
+          } catch(e) {
+              Swal.fire('错误', '网络错误: ' + e.message, 'error');
+          }
       }
 
       async function confirmDeleteWorker(alias, workerId, accIndex) {
